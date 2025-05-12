@@ -1121,3 +1121,40 @@ func LegacyEncrypt(i int, src, rsaKey string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// --- BMP Helper Stubs ---
+func RandomHex(n int) string {
+	return RandStringRunes(n)
+}
+
+func SystemInfo(dev interface{}) string {
+	return "system_info_stub"
+}
+
+func EventListeners() string {
+	return "event_listeners_stub"
+}
+
+func BackgroundEvents() string {
+	return "background_events_stub"
+}
+
+func PrefBench() string {
+	return "pref_bench_stub"
+}
+
+func SensorCal() string {
+	return "sensor_cal_stub"
+}
+
+func GyroDrift() string {
+	return "gyro_drift_stub"
+}
+
+func MemStats() string {
+	return "mem_stats_stub"
+}
+
+func Scheduler() string {
+	return "scheduler_stub"
+}
