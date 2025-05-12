@@ -31,6 +31,9 @@ type AkamaiRequest struct {
 	Version      string `json:"version"`
 	Challenge    bool   `json:"challenge"`
 	ChallengeUrl string `json:"powUrl"`
+	SiteUrl      string `json:"siteUrl"`
+	Abck         string `json:"abck"`
+	BmSz         string `json:"bmSz"`
 }
 
 type AkamaiResponse struct {
@@ -105,7 +108,7 @@ func handleBmpRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	genIface, err := call(req.Version, req.App, req.Lang, req.Challenge, req.ChallengeUrl, deviceManager)
+	genIface, err := call(req.Version, req.App, req.Lang, req.Challenge, req.ChallengeUrl, req.SiteUrl, req.Abck, req.BmSz, deviceManager)
 	if err != nil {
 		http.Error(w, "generator error: "+err.Error(), http.StatusBadRequest)
 		return

@@ -22,16 +22,22 @@ type BotManager struct {
 	app, lang     string
 	challenge     bool
 	challengeURL  string
+	siteUrl       string
+	abck          string
+	bmSz          string
 	deviceManager dm.DeviceManager
 	device        dm.Device
 }
 
-func NewStable(app, lang string, ch bool, powURL string, dmgr dm.DeviceManager) *BotManager {
+func NewStable(app, lang string, ch bool, powURL string, siteUrl string, abck string, bmSz string, dmgr dm.DeviceManager) *BotManager {
 	return &BotManager{
 		app:           app,
 		lang:          lang,
 		challenge:     ch,
 		challengeURL:  powURL,
+		siteUrl:       siteUrl,
+		abck:          abck,
+		bmSz:          bmSz,
 		deviceManager: dmgr,
 		device:        dmgr.RandomAndroidDevice(),
 	}
@@ -44,7 +50,12 @@ func (bm *BotManager) GetPowResponse() (string, error) {
 	if !bm.challenge {
 		return "", nil
 	}
-	params, err := sdk.GetPowParams(bm.device.UserAgent(BMPVERSION, bm.lang), sdk.GetCfDate()-int64(sdk.RandomInt(6600, 50000)), bm.device.AndroidID, bm.challengeURL)
+	params, err := sdk.GetPowParams(
+		bm.device.UserAgent(BMPVERSION, bm.lang),
+		sdk.GetCfDate()-int64(sdk.RandomInt(6600, 50000)),
+		bm.device.AndroidID,
+		bm.siteUrl,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -62,21 +73,32 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 	var d int64
 	var orientationCount int
 
+	userAgent := bm.device.UserAgent(BMPVERSION, bm.lang)
+	if bm.siteUrl != "" {
+		userAgent = userAgent + "|site:" + bm.siteUrl
+	}
+	if bm.abck != "" {
+		userAgent = userAgent + "|abck:" + bm.abck
+	}
+	if bm.bmSz != "" {
+		userAgent = userAgent + "|bmsz:" + bm.bmSz
+	}
+
 	motionData, d2, motionCount := sdk.GenerateMotionString(int(sdk.BitLengthShift(uint64(sdk.RandomInt(32, 128)))))
 	tact, touchVel, touchSteps = bm.GenerateTouchEvents()
 	motionTimeArr := sdk.GenTimeEvent(motionCount)
 	motionTimeData := sdk.CreateMotionPair(motionTimeArr, 0.0).Id.(string)
 
 	sensorData = append(sensorData, sdk.Pair{Id: "", Value: BMPVERSION})
-	sensorData = append(sensorData, sdk.Pair{Id: "-70", Value: "{}"}) // Was "" now "{}" for 3.3.9
-	sensorData = append(sensorData, sdk.Pair{Id: "-80", Value: "{}"}) // Was "" now "{}" for 3.3.9
-	sensorData = append(sensorData, sdk.Pair{Id: "-100", Value: bm.GetSystemInfo()})
+	sensorData = append(sensorData, sdk.Pair{Id: "-70", Value: "{}"})
+	sensorData = append(sensorData, sdk.Pair{Id: "-80", Value: "{}"})
+	sensorData = append(sensorData, sdk.Pair{Id: "-100", Value: userAgent})
 	sensorData = append(sensorData, sdk.Pair{Id: "-101", Value: bm.GetEventListeners()})
 	sensorData = append(sensorData, sdk.Pair{Id: "-102", Value: eact})
 
 	bgEvents := bm.GetBackgroundEvents()
 	if bgEvents == "" {
-		bgEvents = "2,0;3,100;" // fallback if missing
+		bgEvents = "2,0;3,100;"
 	}
 	sensorData = append(sensorData, sdk.Pair{Id: "-103", Value: bgEvents})
 
@@ -84,8 +106,8 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 	sensorData = append(sensorData, sdk.Pair{Id: "-112", Value: bm.GetPrefBench()})
 	sensorData = append(sensorData, sdk.Pair{Id: "-115", Value: bm.GetVerifyStats(touchVel, touchSteps, int(d), int(d2), orientationCount, motionCount)})
 	sensorData = append(sensorData, sdk.Pair{Id: "-117", Value: tact})
-	sensorData = append(sensorData, sdk.Pair{Id: "-120", Value: ""})
-	sensorData = append(sensorData, sdk.Pair{Id: "-121", Value: ""})
+	sensorData = append(sensorData, sdk.Pair{Id: "-120", Value: bm.abck})
+	sensorData = append(sensorData, sdk.Pair{Id: "-121", Value: bm.bmSz})
 	sensorData = append(sensorData, sdk.Pair{Id: "-144", Value: oreintationTimeData})
 	sensorData = append(sensorData, sdk.Pair{Id: "-142", Value: orientationData})
 	sensorData = append(sensorData, sdk.Pair{Id: "-145", Value: motionTimeData})
@@ -103,10 +125,8 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 	}
 	powToken := bm.GetPowToken()
 
-	// Compose trailing numbers (customize as needed)
 	trailingNumbers := fmt.Sprintf("%d,%d,%d", touchVel, touchSteps, motionCount)
 
-	// Compose the final sensor string in Kohl's format
 	sensor := fmt.Sprintf("6,a,%s,%s,%s$%s$$$", encryptedSensor, powResponse, powToken, trailingNumbers)
 	return sensor, nil
 }
