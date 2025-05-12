@@ -40,7 +40,10 @@ func NewStable(app, lang string, ch bool, powURL string, dmgr dm.DeviceManager) 
 func (bm *BotManager) GetAndroidId() string          { return bm.device.AndroidID }
 func (bm *BotManager) GetDevice() dm.Device          { return bm.device }
 func (bm *BotManager) GetPowToken() string           { return sdk.RandomHex(64) }
-func (bm *BotManager) GetPowResponse() (string, error) { return sdk.SolvePow(bm.challengeURL) }
+func (bm *BotManager) GetPowResponse() (string, error) {
+	// Use stub: just return a dummy POW string for now
+	return "pow_stub", nil
+}
 
 func (bm *BotManager) GenerateSensorData() (string, error) {
 	var data []sdk.Pair
@@ -48,11 +51,11 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 		sdk.Pair{"", BMPVersion},
 		sdk.Pair{"-70", "{}"},
 		sdk.Pair{"-80", "{}"},
-		sdk.Pair{"-100", bm.GetSystemInfo()},
-		sdk.Pair{"-101", bm.GetEventListeners()},
-		sdk.Pair{"-103", bm.GetBackgroundEvents()},
+		sdk.Pair{"-100", sdk.SystemInfo(bm.device)},
+		sdk.Pair{"-101", sdk.EventListeners()},
+		sdk.Pair{"-103", sdk.BackgroundEvents()},
 		sdk.Pair{"-108", ""},
-		sdk.Pair{"-112", bm.GetPrefBench()},
+		sdk.Pair{"-112", sdk.PrefBench()},
 	)
 	tact, vel, steps := bm.generateTouch()
 	data = append(data,
@@ -60,13 +63,13 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 		sdk.Pair{"-117", tact},
 	)
 	data = append(data,
-		sdk.Pair{"-160", bm.GetSensorCal()},
-		sdk.Pair{"-161", bm.GetGyroDrift()},
-		sdk.Pair{"-162", bm.GetMemStats()},
-		sdk.Pair{"-163", bm.GetScheduler()},
+		sdk.Pair{"-160", sdk.SensorCal()},
+		sdk.Pair{"-161", sdk.GyroDrift()},
+		sdk.Pair{"-162", sdk.MemStats()},
+		sdk.Pair{"-163", sdk.Scheduler()},
 	)
 	plain := sdk.SerializeBmp(data)
-	enc, err := bm.encryptSensor(plain)
+	enc, err := bm.encryptSensor([]byte(plain))
 	if err != nil {
 		return "", err
 	}
