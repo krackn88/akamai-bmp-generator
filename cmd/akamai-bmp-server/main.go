@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"reflect"
-	"strconv"
 
 	// ─── BMP generators ────────────────────────────────────────────────
 	bmp212 "xvertile/akamai-bmp/bm/2.1.2"
@@ -100,8 +99,8 @@ func handleBmpRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newGen, ok := akamaiBmpVersions[req.Version]
-	if !ok {
+	ok := false
+	if _, ok = akamaiBmpVersions[req.Version]; !ok {
 		http.Error(w, "unsupported BMP version", http.StatusBadRequest)
 		return
 	}

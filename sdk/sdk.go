@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	crand "crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -1157,4 +1158,49 @@ func MemStats() string {
 
 func Scheduler() string {
 	return "scheduler_stub"
+}
+
+// --- BMP Crypto Real Implementations ---
+func RandomBytes(n int) []byte {
+	b := make([]byte, n)
+	_, _ = crand.Read(b)
+	return b
+}
+
+func AESCBCEncrypt(data []byte, key []byte, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, errors.New("no data to encrypt")
+	}
+	// PKCS7 padding
+	padLen := block.BlockSize() - (len(data) % block.BlockSize())
+	pad := bytes.Repeat([]byte{byte(padLen)}, padLen)
+	padded := append(data, pad...)
+	ciphertext := make([]byte, len(padded))
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext, padded)
+	return ciphertext, nil
+}
+
+func RSAEncryptOAEP(data []byte, base64Key string) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(base64Key)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(keyBytes)
+	if block != nil {
+		keyBytes = block.Bytes
+	}
+	pub, err := x509.ParsePKIXPublicKey(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+	pubKey, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("not an RSA public key")
+	}
+	return rsa.EncryptOAEP(sha1.New(), crand.Reader, pubKey, data, nil)
 }

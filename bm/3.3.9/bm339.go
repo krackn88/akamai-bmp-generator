@@ -41,8 +41,14 @@ func (bm *BotManager) GetAndroidId() string          { return bm.device.AndroidI
 func (bm *BotManager) GetDevice() dm.Device          { return bm.device }
 func (bm *BotManager) GetPowToken() string           { return sdk.RandomHex(64) }
 func (bm *BotManager) GetPowResponse() (string, error) {
-	// Use stub: just return a dummy POW string for now
-	return "pow_stub", nil
+	if !bm.challenge {
+		return "", nil
+	}
+	params, err := sdk.GetPowParams(bm.device.UserAgent(BMPVersion, bm.lang), sdk.GetCfDate()-int64(sdk.RandomInt(6600, 50000)), bm.device.AndroidID, bm.challengeURL)
+	if err != nil {
+		return "", err
+	}
+	return sdk.GeneratePow(*params)
 }
 
 func (bm *BotManager) GenerateSensorData() (string, error) {

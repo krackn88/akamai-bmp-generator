@@ -43,7 +43,16 @@ func NewStable(app, lang string, ch bool, powURL string, dmgr dm.DeviceManager) 
 func (bm *BotManager) GetAndroidId() string          { return bm.device.AndroidID }
 func (bm *BotManager) GetDevice() dm.Device          { return bm.device }
 func (bm *BotManager) GetPowToken() string           { return sdk.RandomHex(64) } // unchanged
-func (bm *BotManager) GetPowResponse() (string, error) { return sdk.SolvePow(bm.challengeURL) }
+func (bm *BotManager) GetPowResponse() (string, error) {
+	if !bm.challenge {
+		return "", nil
+	}
+	params, err := sdk.GetPowParams(bm.device.UserAgent(BMPVersion, bm.lang), sdk.GetCfDate()-int64(sdk.RandomInt(6600, 50000)), bm.device.AndroidID, bm.challengeURL)
+	if err != nil {
+		return "", err
+	}
+	return sdk.GeneratePow(*params)
+}
 
 // ---------------------------------------------------------------------
 //                             Sensor Logic
@@ -56,11 +65,11 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 		sdk.Pair{"", BMPVersion},
 		sdk.Pair{"-70", "{}"},
 		sdk.Pair{"-82", "{}"}, // was -80
-		sdk.Pair{"-100", bm.GetSystemInfo()},
-		sdk.Pair{"-101", bm.GetEventListeners()},
-		sdk.Pair{"-103", bm.GetBackgroundEvents()},
+		sdk.Pair{"-100", sdk.SystemInfo(bm.device)},
+		sdk.Pair{"-101", sdk.EventListeners()},
+		sdk.Pair{"-103", sdk.BackgroundEvents()},
 		sdk.Pair{"-108", ""},
-		sdk.Pair{"-113", bm.GetPrefBench()}, // was -112
+		sdk.Pair{"-113", sdk.PrefBench()}, // was -112
 	)
 
 	// ─── Human‑interaction entropy ────────────────────────────────
@@ -72,14 +81,14 @@ func (bm *BotManager) GenerateSensorData() (string, error) {
 
 	// new calibration IDs
 	data = append(data,
-		sdk.Pair{"-160", bm.GetSensorCal()},
-		sdk.Pair{"-161", bm.GetGyroDrift()},
-		sdk.Pair{"-162", bm.GetMemStats()},
-		sdk.Pair{"-163", bm.GetScheduler()},
+		sdk.Pair{"-160", sdk.SensorCal()},
+		sdk.Pair{"-161", sdk.GyroDrift()},
+		sdk.Pair{"-162", sdk.MemStats()},
+		sdk.Pair{"-163", sdk.Scheduler()},
 	)
 
 	plain := sdk.SerializeBmp(data)
-	enc, err := bm.encryptSensor(plain)
+	enc, err := bm.encryptSensor([]byte(plain))
 	if err != nil {
 		return "", err
 	}
@@ -111,20 +120,9 @@ func (bm *BotManager) generateTouch() (tact string, velocity, steps int) {
 }
 
 // ─── Stub helpers (identical logic to earlier versions) ──────────────
-func (bm *BotManager) GetSystemInfo() string     { return sdk.SystemInfo(bm.device) }
-func (bm *BotManager) GetEventListeners() string { return sdk.EventListeners() }
-func (bm *BotManager) GetBackgroundEvents() string {
-	if s := sdk.BackgroundEvents(); s != "" { return s }
-	return "2,0;3,100;"
-}
-func (bm *BotManager) GetPrefBench() string      { return sdk.PrefBench() }
 func (bm *BotManager) GetVerifyStats(vel, steps int) string {
 	return fmt.Sprintf("%d,%d,0,0,0,0,%d", vel, steps, sdk.RandomInt(5, 14))
 }
-func (bm *BotManager) GetSensorCal() string   { return sdk.SensorCal() }
-func (bm *BotManager) GetGyroDrift() string   { return sdk.GyroDrift() }
-func (bm *BotManager) GetMemStats() string    { return sdk.MemStats() }
-func (bm *BotManager) GetScheduler() string   { return sdk.Scheduler() }
 
 // encryptSensor wraps SerializeBmp → AES‑CBC → RSA‑wrap (same as 3.3.x).
 func (bm *BotManager) encryptSensor(buf []byte) (string, error) {
